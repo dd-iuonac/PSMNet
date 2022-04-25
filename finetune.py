@@ -90,6 +90,8 @@ def train(imgL, imgR, disp_L):
 
     if args.cuda:
         imgL, imgR, disp_true = imgL.cuda(), imgR.cuda(), disp_L.cuda()
+    else:
+        disp_true = disp_L
 
     # ---------
     mask = (disp_true > 0)
