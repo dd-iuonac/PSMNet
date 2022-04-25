@@ -116,7 +116,7 @@ def train(imgL, imgR, disp_L):
     loss.backward()
     optimizer.step()
 
-    return loss.data[0]
+    return loss.data.item()
 
 
 def test(imgL, imgR, disp_true):
