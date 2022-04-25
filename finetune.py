@@ -56,11 +56,11 @@ all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_
 
 TrainImgLoader = torch.utils.data.DataLoader(
     DA.myImageFloder(all_left_img, all_right_img, all_left_disp, True),
-    batch_size=12, shuffle=True, num_workers=8, drop_last=False)
+    batch_size=2, shuffle=True, num_workers=1, drop_last=False)
 
 TestImgLoader = torch.utils.data.DataLoader(
     DA.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
-    batch_size=8, shuffle=False, num_workers=4, drop_last=False)
+    batch_size=2, shuffle=False, num_workers=1, drop_last=False)
 
 if args.model == 'stackhourglass':
     model = stackhourglass(args.maxdisp, args.cuda)
@@ -116,7 +116,7 @@ def train(imgL, imgR, disp_L):
     loss.backward()
     optimizer.step()
 
-    return loss.data.item()
+    return loss.item()
 
 
 def test(imgL, imgR, disp_true):
@@ -128,6 +128,7 @@ def test(imgL, imgR, disp_true):
 
     with torch.no_grad():
         output3 = model(imgL, imgR)
+    output3.squeeze_()
 
     pred_disp = output3.data.cpu()
 
