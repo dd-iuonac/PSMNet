@@ -63,7 +63,7 @@ TestImgLoader = torch.utils.data.DataLoader(
     batch_size=8, shuffle=False, num_workers=4, drop_last=False)
 
 if args.model == 'stackhourglass':
-    model = stackhourglass(args.maxdisp)
+    model = stackhourglass(args.maxdisp, args.cuda)
 elif args.model == 'basic':
     model = basic(args.maxdisp)
 else:
