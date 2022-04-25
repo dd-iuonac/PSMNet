@@ -52,8 +52,9 @@ class hourglass(nn.Module):
 
 
 class PSMNet(nn.Module):
-    def __init__(self, maxdisp):
+    def __init__(self, maxdisp, cuda_enabled):
         super(PSMNet, self).__init__()
+        self.cuda_enabled = cuda_enabled
         self.maxdisp = maxdisp
 
         self.feature_extraction = feature_extraction()
@@ -109,6 +110,9 @@ class PSMNet(nn.Module):
         # matching
         cost = Variable(
             torch.FloatTensor(refimg_fea.size()[0], refimg_fea.size()[1] * 2, self.maxdisp // 4, refimg_fea.size()[2], refimg_fea.size()[3]).zero_())
+
+        if self.cuda_enabled:
+            cost = cost.cuda()
 
         for i in range(self.maxdisp // 4):
             if i > 0:
