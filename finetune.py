@@ -33,6 +33,10 @@ parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flo
                     help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
                     help='number of epochs to train')
+parser.add_argument('--train_batch_size', default=12, type=int, help="training batch size")
+parser.add_argument('--test_batch_size', default=8, type=int, help="testing batch size")
+parser.add_argument('--train_num_workers', default=8, type=int, help="training number of workers")
+parser.add_argument('--test_num_workers', default=4, type=int, help="testing number of workers")
 parser.add_argument('--loadmodel', default=None,
                     help='load model')
 parser.add_argument('--savemodel', default='./',
@@ -56,11 +60,11 @@ all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_
 
 TrainImgLoader = torch.utils.data.DataLoader(
     DA.myImageFloder(all_left_img, all_right_img, all_left_disp, True),
-    batch_size=2, shuffle=True, num_workers=1, drop_last=False)
+    batch_size=args.train_batch_size, shuffle=True, num_workers=args.train_num_workers, drop_last=False)
 
 TestImgLoader = torch.utils.data.DataLoader(
     DA.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
-    batch_size=2, shuffle=False, num_workers=1, drop_last=False)
+    batch_size=args.test_batch_size, shuffle=False, num_workers=args.test_num_workers, drop_last=False)
 
 if args.model == 'stackhourglass':
     model = stackhourglass(args.maxdisp, args.cuda)
