@@ -1,4 +1,5 @@
 import os.path
+from datetime import datetime
 
 
 class Logger:
@@ -6,6 +7,8 @@ class Logger:
         self.path = path + os.path.sep + "log.txt"
 
     def write(self, message):
+        text = f"[{datetime.now().strftime('%x - %X')}] {message}\n"
+
         with open(self.path, "a") as file:
-            print(message + "\n")
-            file.write(message + "\n")
+            print(text)
+            file.write(text)
