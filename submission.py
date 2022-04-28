@@ -108,7 +108,7 @@ def main():
 
         start_time = time.time()
         pred_disp = test(imgL, imgR)
-        print('time = %.2f' % (time.time() - start_time))
+        print('[Sample %d] Infer time = %.2f' % (inx, (time.time() - start_time)))
 
         if top_pad != 0 or right_pad != 0:
             img = pred_disp[top_pad:, :-right_pad]
