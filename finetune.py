@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.parallel
 import torch.optim as optim
 import torch.utils.data
+import tqdm as tqdm
 from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
@@ -166,21 +167,24 @@ def main():
         total_test_loss = 0
         adjust_learning_rate(optimizer, epoch)
 
-        ## training ##
-        for batch_idx, (imgL_crop, imgR_crop, disp_crop_L) in enumerate(TrainImgLoader):
-            start_time = time.time()
+        # Training
+        with tqdm.tqdm(TrainImgLoader, unit="batch") as train_iter:
+            for batch_idx, (imgL_crop, imgR_crop, disp_crop_L) in enumerate(train_iter):
+                start_time = time.time()
 
-            loss = train(imgL_crop, imgR_crop, disp_crop_L)
-            print('Iter %d training loss = %.3f , time = %.2f' % (batch_idx, loss, time.time() - start_time))
-            total_train_loss += loss
-        print('epoch %d total training loss = %.3f' % (epoch, total_train_loss / len(TrainImgLoader)))
+                loss = train(model, optimizer, imgL_crop, imgR_crop, disp_crop_L, args)
+                train_iter.set_description(f"Epoch {epoch} | Train Iter {batch_idx}")
+                train_iter.set_postfix(training_loss=loss, elapsed_time=time.time() - start_time)
+                total_train_loss += loss
+            print('\nEpoch %d total training loss = %.3f\n' % (epoch, total_train_loss / len(TrainImgLoader)))
 
-        ## Test ##
-
-        for batch_idx, (imgL, imgR, disp_L) in enumerate(TestImgLoader):
-            test_loss = test(imgL, imgR, disp_L)
-            print('Iter %d 3-px error in val = %.3f' % (batch_idx, test_loss * 100))
-            total_test_loss += test_loss
+        # Test
+        with tqdm.tqdm(TestImgLoader, unit="batch") as test_iter:
+            for batch_idx, (imgL, imgR, disp_L) in enumerate(test_iter):
+                test_iter.set_description(f"Epoch {epoch} | Test Iter {batch_idx}")
+                test_loss = test(model, imgL, imgR, disp_L, args)
+                test_iter.set_postfix(error_3px_val=test_loss * 100)
+                total_test_loss += test_loss
 
         print('epoch %d total 3-px error in val = %.3f' % (epoch, total_test_loss / len(TestImgLoader) * 100))
         if total_test_loss / len(TestImgLoader) * 100 > max_acc:
