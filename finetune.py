@@ -1,24 +1,16 @@
 from __future__ import print_function
 import argparse
-import os
-import random
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
 from torch.autograd import Variable
 import torch.nn.functional as F
-import skimage
-import skimage.io
-import skimage.transform
 import numpy as np
 import time
-import math
 import copy
-from dataloader import KITTIloader2015 as ls
-from dataloader import KITTILoader as DA
+from dataloader import KITTILoader as kittiLoader
 
 from models import *
 
@@ -52,26 +44,28 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 if args.datatype == '2015':
-    from dataloader import KITTIloader2015 as ls
+    from dataloader import KITTIloader2015 as dataLoader
 elif args.datatype == '2012':
-    from dataloader import KITTIloader2012 as ls
+    from dataloader import KITTIloader2012 as dataLoader
 
-all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_left_disp = ls.dataloader(args.datapath)
+all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_left_disp = dataLoader.dataloader(args.datapath)
 
 TrainImgLoader = torch.utils.data.DataLoader(
-    DA.myImageFloder(all_left_img, all_right_img, all_left_disp, True),
+    kittiLoader.myImageFloder(all_left_img, all_right_img, all_left_disp, True),
     batch_size=args.train_batch_size, shuffle=True, num_workers=args.train_num_workers, drop_last=False)
 
 TestImgLoader = torch.utils.data.DataLoader(
-    DA.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
+    kittiLoader.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
     batch_size=args.test_batch_size, shuffle=False, num_workers=args.test_num_workers, drop_last=False)
 
+model = None
 if args.model == 'stackhourglass':
     model = stackhourglass(args.maxdisp, args.cuda)
 elif args.model == 'basic':
     model = basic(args.maxdisp)
 else:
     print('no model')
+    exit(1)
 
 if args.cuda:
     model = nn.DataParallel(model)
@@ -114,8 +108,8 @@ def train(imgL, imgR, disp_L):
             output3[mask], disp_true[mask], size_average=True)
     elif args.model == 'basic':
         output = model(imgL, imgR)
-        output = torch.squeeze(output3, 1)
-        loss = F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True)
+        output = torch.squeeze(output, 1)
+        loss = F.smooth_l1_loss(output[mask], disp_true[mask], size_average=True)
 
     loss.backward()
     optimizer.step()
