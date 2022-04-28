@@ -14,73 +14,8 @@ from dataloader import KITTILoader as kittiLoader
 
 from models import *
 
-parser = argparse.ArgumentParser(description='PSMNet')
-parser.add_argument('--maxdisp', type=int, default=192,
-                    help='maxium disparity')
-parser.add_argument('--model', default='stackhourglass',
-                    help='select model')
-parser.add_argument('--datatype', default='2015',
-                    help='datapath')
-parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flow_2015/training/',
-                    help='datapath')
-parser.add_argument('--epochs', type=int, default=300,
-                    help='number of epochs to train')
-parser.add_argument('--train_batch_size', default=12, type=int, help="training batch size")
-parser.add_argument('--test_batch_size', default=8, type=int, help="testing batch size")
-parser.add_argument('--train_num_workers', default=8, type=int, help="training number of workers")
-parser.add_argument('--test_num_workers', default=4, type=int, help="testing number of workers")
-parser.add_argument('--loadmodel', default=None,
-                    help='load model')
-parser.add_argument('--savemodel', default='./',
-                    help='save model')
-parser.add_argument('--no-cuda', action='store_true', default=False,
-                    help='enables CUDA training')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
-                    help='random seed (default: 1)')
-args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()
-torch.manual_seed(args.seed)
-if args.cuda:
-    torch.cuda.manual_seed(args.seed)
 
-if args.datatype == '2015':
-    from dataloader import KITTIloader2015 as dataLoader
-elif args.datatype == '2012':
-    from dataloader import KITTIloader2012 as dataLoader
-
-all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_left_disp = dataLoader.dataloader(args.datapath)
-
-TrainImgLoader = torch.utils.data.DataLoader(
-    kittiLoader.myImageFloder(all_left_img, all_right_img, all_left_disp, True),
-    batch_size=args.train_batch_size, shuffle=True, num_workers=args.train_num_workers, drop_last=False)
-
-TestImgLoader = torch.utils.data.DataLoader(
-    kittiLoader.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
-    batch_size=args.test_batch_size, shuffle=False, num_workers=args.test_num_workers, drop_last=False)
-
-model = None
-if args.model == 'stackhourglass':
-    model = stackhourglass(args.maxdisp, args.cuda)
-elif args.model == 'basic':
-    model = basic(args.maxdisp)
-else:
-    print('no model')
-    exit(1)
-
-if args.cuda:
-    model = nn.DataParallel(model)
-    model.cuda()
-
-if args.loadmodel is not None:
-    state_dict = torch.load(args.loadmodel)
-    model.load_state_dict(state_dict['state_dict'])
-
-print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
-
-optimizer = optim.Adam(model.parameters(), lr=0.1, betas=(0.9, 0.999))
-
-
-def train(imgL, imgR, disp_L):
+def train(model, optimizer, imgL, imgR, disp_L, args):
     model.train()
     imgL = Variable(torch.FloatTensor(imgL))
     imgR = Variable(torch.FloatTensor(imgR))
@@ -117,7 +52,7 @@ def train(imgL, imgR, disp_L):
     return loss.item()
 
 
-def test(imgL, imgR, disp_true):
+def test(model, imgL, imgR, disp_true, args):
     model.eval()
     imgL = Variable(torch.FloatTensor(imgL))
     imgR = Variable(torch.FloatTensor(imgR))
@@ -153,6 +88,75 @@ def adjust_learning_rate(optimizer, epoch):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='PSMNet')
+    parser.add_argument('--maxdisp', type=int, default=192,
+                        help='maxium disparity')
+    parser.add_argument('--model', default='stackhourglass',
+                        help='select model')
+    parser.add_argument('--datatype', default='2015',
+                        help='datapath')
+    parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flow_2015/training/',
+                        help='datapath')
+    parser.add_argument('--epochs', type=int, default=300,
+                        help='number of epochs to train')
+    parser.add_argument('--train_batch_size', default=12, type=int, help="training batch size")
+    parser.add_argument('--test_batch_size', default=8, type=int, help="testing batch size")
+    parser.add_argument('--train_num_workers', default=8, type=int, help="training number of workers")
+    parser.add_argument('--test_num_workers', default=4, type=int, help="testing number of workers")
+    parser.add_argument('--loadmodel', default=None,
+                        help='load model')
+    parser.add_argument('--savemodel', default='./',
+                        help='save model')
+    parser.add_argument('--no-cuda', action='store_true', default=False,
+                        help='enables CUDA training')
+    parser.add_argument('--seed', type=int, default=1, metavar='S',
+                        help='random seed (default: 1)')
+    args = parser.parse_args()
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    torch.manual_seed(args.seed)
+    if args.cuda:
+        torch.cuda.manual_seed(args.seed)
+
+    if args.datatype == '2015':
+        from dataloader import KITTIloader2015 as dataLoader
+    elif args.datatype == '2012':
+        from dataloader import KITTIloader2012 as dataLoader
+
+    all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_left_disp = dataLoader.dataloader(args.datapath)
+
+    TrainImgLoader = torch.utils.data.DataLoader(
+        kittiLoader.myImageFloder(all_left_img, all_right_img, all_left_disp, True),
+        batch_size=args.train_batch_size, shuffle=True, num_workers=args.train_num_workers, drop_last=False)
+
+    TestImgLoader = torch.utils.data.DataLoader(
+        kittiLoader.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
+        batch_size=args.test_batch_size, shuffle=False, num_workers=args.test_num_workers, drop_last=False)
+
+    model = None
+    if args.model == 'stackhourglass':
+        model = stackhourglass(args.maxdisp, args.cuda)
+    elif args.model == 'basic':
+        model = basic(args.maxdisp)
+    else:
+        print('no model')
+        exit(1)
+
+    if args.cuda:
+        model = nn.DataParallel(model)
+        model.cuda()
+
+    if args.loadmodel is not None:
+        print(f"Loading model: {args.loadmodel}")
+        state_dict = torch.load(args.loadmodel)
+        model.load_state_dict(state_dict['state_dict'])
+    else:
+        print("Init new model")
+
+    print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
+
+    optimizer = optim.Adam(model.parameters(), lr=0.1, betas=(0.9, 0.999))
+
+    # Training and testing
     max_acc = 0
     max_epo = 0
     start_full_time = time.time()
@@ -184,7 +188,7 @@ def main():
             max_epo = epoch
         print('MAX epoch %d total test error = %.3f' % (max_epo, max_acc))
 
-        # SAVE
+        # Save
         savefilename = args.savemodel + 'finetune_' + str(epoch) + '.tar'
         torch.save({
             'epoch': epoch,
