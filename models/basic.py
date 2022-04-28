@@ -1,10 +1,5 @@
 from __future__ import print_function
-import torch
-import torch.nn as nn
 import torch.utils.data
-from torch.autograd import Variable
-import torch.nn.functional as F
-import math
 from .submodule import *
 
 
@@ -12,7 +7,7 @@ class PSMNet(nn.Module):
     def __init__(self, maxdisp):
         super(PSMNet, self).__init__()
         self.maxdisp = maxdisp
-        self.feature_extraction = feature_extraction()
+        self.feature_extraction = FeatureExtraction()
 
         ########
         self.dres0 = nn.Sequential(convbn_3d(64, 32, 3, 1, 1),
@@ -84,6 +79,6 @@ class PSMNet(nn.Module):
         cost = F.upsample(cost, [self.maxdisp, left.size()[2], left.size()[3]], mode='trilinear')
         cost = torch.squeeze(cost, 1)
         pred = F.softmax(cost)
-        pred = disparityregression(self.maxdisp)(pred)
+        pred = DisparityRegression(self.maxdisp)(pred)
 
         return pred
