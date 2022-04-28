@@ -1,16 +1,11 @@
 from __future__ import print_function
-import torch
-import torch.nn as nn
 import torch.utils.data
-from torch.autograd import Variable
-import torch.nn.functional as F
-import math
 from .submodule import *
 
 
-class hourglass(nn.Module):
+class Hourglass(nn.Module):
     def __init__(self, inplanes):
-        super(hourglass, self).__init__()
+        super(Hourglass, self).__init__()
 
         self.conv1 = nn.Sequential(convbn_3d(inplanes, inplanes * 2, kernel_size=3, stride=2, pad=1),
                                    nn.ReLU(inplace=True))
@@ -52,12 +47,12 @@ class hourglass(nn.Module):
 
 
 class PSMNet(nn.Module):
-    def __init__(self, maxdisp, cuda_enabled):
+    def __init__(self, max_disp, cuda_enabled):
         super(PSMNet, self).__init__()
         self.cuda_enabled = cuda_enabled
-        self.maxdisp = maxdisp
+        self.maxdisp = max_disp
 
-        self.feature_extraction = feature_extraction()
+        self.feature_extraction = FeatureExtraction()
 
         self.dres0 = nn.Sequential(convbn_3d(64, 32, 3, 1, 1),
                                    nn.ReLU(inplace=True),
@@ -68,11 +63,11 @@ class PSMNet(nn.Module):
                                    nn.ReLU(inplace=True),
                                    convbn_3d(32, 32, 3, 1, 1))
 
-        self.dres2 = hourglass(32)
+        self.dres2 = Hourglass(32)
 
-        self.dres3 = hourglass(32)
+        self.dres3 = Hourglass(32)
 
-        self.dres4 = hourglass(32)
+        self.dres4 = Hourglass(32)
 
         self.classif1 = nn.Sequential(convbn_3d(32, 32, 3, 1, 1),
                                       nn.ReLU(inplace=True),
@@ -145,11 +140,11 @@ class PSMNet(nn.Module):
 
             cost1 = torch.squeeze(cost1, 1)
             pred1 = F.softmax(cost1, dim=1)
-            pred1 = disparityregression(self.maxdisp)(pred1)
+            pred1 = DisparityRegression(self.maxdisp, self.cuda_enabled)(pred1)
 
             cost2 = torch.squeeze(cost2, 1)
             pred2 = F.softmax(cost2, dim=1)
-            pred2 = disparityregression(self.maxdisp)(pred2)
+            pred2 = DisparityRegression(self.maxdisp, self.cuda_enabled)(pred2)
 
         cost3 = F.upsample(cost3, [self.maxdisp, left.size()[2], left.size()[3]], mode='trilinear')
         cost3 = torch.squeeze(cost3, 1)
@@ -157,7 +152,7 @@ class PSMNet(nn.Module):
         # For your information: This formulation 'softmax(c)' learned "similarity"
         # while 'softmax(-c)' learned 'matching cost' as mentioned in the paper.
         # However, 'c' or '-c' do not affect the performance because feature-based cost volume provided flexibility.
-        pred3 = disparityregression(self.maxdisp)(pred3)
+        pred3 = DisparityRegression(self.maxdisp, self.cuda_enabled)(pred3)
 
         if self.training:
             return pred1, pred2, pred3
