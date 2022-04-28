@@ -1,6 +1,11 @@
 from __future__ import print_function
 import torch.utils.data
+import torch
+import torch.nn as nn
 from .submodule import *
+from torch.autograd import Variable
+import torch.nn.functional as F
+import math
 
 
 class Hourglass(nn.Module):
