@@ -100,8 +100,7 @@ class FeatureExtraction(nn.Module):
                           kernel_size=1, stride=stride, bias=False),
                 nn.BatchNorm2d(planes * block.expansion), )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample, pad, dilation))
+        layers = [block(self.inplanes, planes, stride, downsample, pad, dilation)]
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, 1, None, pad, dilation))
