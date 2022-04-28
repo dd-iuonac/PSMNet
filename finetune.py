@@ -12,7 +12,7 @@ import numpy as np
 import time
 import copy
 from dataloader import KITTILoader as kittiLoader
-
+from utils.logger import Logger
 from models import *
 
 
@@ -133,13 +133,14 @@ def main():
         kittiLoader.myImageFloder(test_left_img, test_right_img, test_left_disp, False),
         batch_size=args.test_batch_size, shuffle=False, num_workers=args.test_num_workers, drop_last=False)
 
+    logger = Logger(args.savemodel)
     model = None
     if args.model == 'stackhourglass':
         model = stackhourglass(args.maxdisp, args.cuda)
     elif args.model == 'basic':
         model = basic(args.maxdisp)
     else:
-        print('no model')
+        logger.write('no model')
         exit(1)
 
     if args.cuda:
@@ -147,13 +148,13 @@ def main():
         model.cuda()
 
     if args.loadmodel is not None:
-        print(f"Loading model: {args.loadmodel}")
+        logger.write(f"Loading model: {args.loadmodel}")
         state_dict = torch.load(args.loadmodel)
         model.load_state_dict(state_dict['state_dict'])
     else:
-        print("Init new model")
+        logger.write("Init new model")
 
-    print('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
+    logger.write('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
 
     optimizer = optim.Adam(model.parameters(), lr=0.1, betas=(0.9, 0.999))
 
@@ -173,24 +174,26 @@ def main():
                 start_time = time.time()
 
                 loss = train(model, optimizer, imgL_crop, imgR_crop, disp_crop_L, args)
+                logger.write('Iter %d training loss = %.3f , time = %.2f' % (batch_idx, loss, time.time() - start_time))
                 train_iter.set_description(f"Epoch {epoch} | Train Iter {batch_idx}")
                 train_iter.set_postfix(training_loss=loss, elapsed_time=time.time() - start_time)
                 total_train_loss += loss
-            print('\nEpoch %d total training loss = %.3f\n' % (epoch, total_train_loss / len(TrainImgLoader)))
+            logger.write('\nEpoch %d total training loss = %.3f\n' % (epoch, total_train_loss / len(TrainImgLoader)))
 
         # Test
         with tqdm.tqdm(TestImgLoader, unit="batch") as test_iter:
             for batch_idx, (imgL, imgR, disp_L) in enumerate(test_iter):
                 test_iter.set_description(f"Epoch {epoch} | Test Iter {batch_idx}")
                 test_loss = test(model, imgL, imgR, disp_L, args)
+                logger.write('Iter %d 3-px error in val = %.3f' % (batch_idx, test_loss * 100))
                 test_iter.set_postfix(error_3px_val=test_loss * 100)
                 total_test_loss += test_loss
 
-        print('epoch %d total 3-px error in val = %.3f' % (epoch, total_test_loss / len(TestImgLoader) * 100))
+        logger.write('epoch %d total 3-px error in val = %.3f' % (epoch, total_test_loss / len(TestImgLoader) * 100))
         if total_test_loss / len(TestImgLoader) * 100 > max_acc:
             max_acc = total_test_loss / len(TestImgLoader) * 100
             max_epo = epoch
-        print('MAX epoch %d total test error = %.3f' % (max_epo, max_acc))
+        logger.write('MAX epoch %d total test error = %.3f' % (max_epo, max_acc))
 
         # Save
         savefilename = args.savemodel + 'finetune_' + str(epoch) + '.tar'
@@ -201,9 +204,9 @@ def main():
             'test_loss': total_test_loss / len(TestImgLoader) * 100,
         }, savefilename)
 
-    print('full finetune time = %.2f HR' % ((time.time() - start_full_time) / 3600))
-    print(max_epo)
-    print(max_acc)
+    logger.write('full finetune time = %.2f HR' % ((time.time() - start_full_time) / 3600))
+    logger.write(f"Max epoch: {max_epo}")
+    logger.write(f"Max accuracy: {max_acc}")
 
 
 if __name__ == '__main__':
