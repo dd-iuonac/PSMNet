@@ -2,9 +2,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.utils.data
-from torch.autograd import Variable
 import torch.nn.functional as F
-import math
 import numpy as np
 
 
@@ -45,19 +43,22 @@ class BasicBlock(nn.Module):
         return out
 
 
-class disparityregression(nn.Module):
-    def __init__(self, maxdisp):
-        super(disparityregression, self).__init__()
-        self.disp = torch.Tensor(np.reshape(np.array(range(maxdisp)), [1, maxdisp, 1, 1])).cuda()
+class DisparityRegression(nn.Module):
+    def __init__(self, maxdisp, cuda_enabled):
+        super(DisparityRegression, self).__init__()
+        self.cuda_enabled = cuda_enabled
+        self.disp = torch.Tensor(np.reshape(np.array(range(maxdisp)), [1, maxdisp, 1, 1]))
+        if self.cuda_enabled:
+            self.disp = self.disp.cuda()
 
     def forward(self, x):
         out = torch.sum(x * self.disp.data, 1, keepdim=True)
         return out
 
 
-class feature_extraction(nn.Module):
+class FeatureExtraction(nn.Module):
     def __init__(self):
-        super(feature_extraction, self).__init__()
+        super(FeatureExtraction, self).__init__()
         self.inplanes = 32
         self.firstconv = nn.Sequential(convbn(3, 32, 3, 2, 1, 1),
                                        nn.ReLU(inplace=True),
