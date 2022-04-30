@@ -149,9 +149,11 @@ def main():
 
     if args.loadmodel is not None:
         logger.write(f"Loading model: {args.loadmodel}")
+        last_epoch = int(args.loadmodel.split(".")[0].split("_")[-1])
         state_dict = torch.load(args.loadmodel)
         model.load_state_dict(state_dict['state_dict'])
     else:
+        last_epoch = 0
         logger.write("Init new model")
 
     logger.write('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
@@ -163,7 +165,8 @@ def main():
     max_epo = 0
     start_full_time = time.time()
 
-    for epoch in range(1, args.epochs + 1):
+    logger.write(f"Last epoch was: {last_epoch}")
+    for epoch in range(1 + last_epoch, last_epoch + args.epochs + 1):
         total_train_loss = 0
         total_test_loss = 0
         adjust_learning_rate(optimizer, epoch)
@@ -178,7 +181,7 @@ def main():
                 train_iter.set_description(f"Epoch {epoch} | Train Iter {batch_idx}")
                 train_iter.set_postfix(training_loss=loss, elapsed_time=time.time() - start_time)
                 total_train_loss += loss
-            logger.write('\nEpoch %d total training loss = %.3f\n' % (epoch, total_train_loss / len(TrainImgLoader)))
+            logger.write('Epoch %d total training loss = %.3f' % (epoch, total_train_loss / len(TrainImgLoader)))
 
         # Test
         with tqdm.tqdm(TestImgLoader, unit="batch") as test_iter:
@@ -197,6 +200,7 @@ def main():
 
         # Save
         savefilename = args.savemodel + 'finetune_' + str(epoch) + '.tar'
+        logger.write(f"Saved model: {savefilename}")
         torch.save({
             'epoch': epoch,
             'state_dict': model.state_dict(),
